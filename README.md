@@ -17,6 +17,20 @@ For game studios, the virtual economy is the lifeblood of player revenue. A prim
 
 ChronosLedger showcases how Google Cloud Spanner solves global transactional consistency:
 
+### Concurrency & Serialization Flow
+```mermaid
+graph TD
+    A[Device A: Purchase Request] -->|Concurrent API Calls| C{Spanner Lock Manager}
+    B[Device B: Purchase Request] -->|Concurrent API Calls| C
+    C -->|Assign TrueTime Timestamp T1| D[Transaction 1: Alice/Bob Wallet Check]
+    C -->|Blocked / Queue| E[Transaction 2: Alice/Bob Wallet Check]
+    D -->|450 Gold >= 400 Gold| F[Deduct 400 Gold / Balance: 50]
+    F -->|Commit T1| G[Write Entitlement & Ledger Success]
+    G -->|Release Locks| E
+    E -->|Reads Balance: 50 Gold| H{50 Gold >= 400 Gold?}
+    H -->|No| I[Abort Transaction & Log EXPLOIT_BLOCKED]
+```
+
 ### 1. TrueTime Atomic Clocks
 Spanner uses **TrueTime**, a highly synchronized API backed by GPS receivers and atomic clocks inside Google data centers. 
 TrueTime assigns absolute, globally ordered timestamps to transactions. Even if two checkout requests hit servers on opposite sides of the world (e.g., Tokyo and Frankfurt) at the same millisecond, Spanner knows which request arrived first and processes them sequentially.
