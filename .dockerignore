@@ -1,0 +1,6 @@
+frontend/node_modules/
+frontend/src/
+.git/
+.venv/
+.venv_314/
+.DS_Store

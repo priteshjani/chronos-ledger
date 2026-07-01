@@ -1,0 +1,47 @@
+{
+  "gcp": {
+    "project_name": "my-host-prj",
+    "project_id": "my-host-prj-472917",
+    "region": "us-west4",
+    "zone": "us-west4-a"
+  },
+  "databases": {
+    "alloydb": {
+      "cluster_id": "alloydb-demo-cluster",
+      "instance_id": "alloydb-inst",
+      "database_name": "alloydb-demo-db",
+      "user": "demo-user"
+    },
+    "spanner": {
+      "instance_id": "spanner-demo-inst",
+      "database_id": "spanner-demo-db",
+      "database_id_chronos": "chronos-ledger-db"
+    },
+    "bigquery": {
+      "dataset_id": "bq-demo"
+    },
+    "bigtable": {
+      "instance_id": "bq-demo-inst",
+      "table_id": "bq-table-id"
+    },
+    "firestore": {
+      "database_id": "(default)"
+    },
+    "memorystore": {
+      "host": "YOUR_REDIS_HOST_IP",
+      "port": 6379,
+      "ssl": true
+    },
+    "cloudsql": {
+      "instance_connection_name": "my-host-prj-472917:us-west4:cloudsql-demo",
+      "database_name": "cloudsql-demo-db",
+      "user": "demo-user",
+      "password": "Password123!"
+    },
+    "dataplex": {
+      "lake_id": "dataplex-lake-id",
+      "zone_id": "us-west1-a",
+      "entry_group_id": "dataplex-entry-group-id"
+    }
+  }
+}
