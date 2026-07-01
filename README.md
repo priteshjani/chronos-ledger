@@ -42,9 +42,9 @@ Spanner executes transactions under **Serializable Isolation** (the highest stan
 
 ---
 
-## 🏆 Case Study: Sony Interactive Entertainment (PlayStation)
+## 🏆 Case Study: Global Gaming Publisher
 
-SIE migrated PlayStation's entire commerce and entitlement database (supporting 350M+ active accounts) from a legacy database cluster to **Cloud Spanner**.
+A global gaming publisher migrated its entire commerce and entitlement database (supporting 350M+ active accounts) from a legacy database cluster to **Cloud Spanner**.
 *   **Results**:
     *   **10x reduction** in storage footprint.
     *   **50% drop** in database operations costs.

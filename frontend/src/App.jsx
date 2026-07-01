@@ -199,10 +199,10 @@ export default function App() {
             <div className="bg-blue-50/50 border border-blue-200 p-4 rounded-lg text-[11px] text-blue-900 space-y-2">
               <span className="font-bold flex items-center gap-1">
                 <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
-                SIE PlayStation Case Study
+                Global Gaming Case Study
               </span>
               <p className="text-zinc-600 leading-relaxed">
-                PlayStation migrated its global commerce system supporting 350M active users to Cloud Spanner, achieving a 10x storage footprint reduction and a 50% cost drop.
+                A global gaming publisher migrated its global commerce system supporting 350M active users to Cloud Spanner, achieving a 10x storage footprint reduction and a 50% cost drop.
               </p>
             </div>
           </div>
