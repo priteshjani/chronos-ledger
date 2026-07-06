@@ -2,12 +2,16 @@ import json
 import uuid
 import logging
 import os
+import random
+import datetime
 from typing import Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from google.cloud import spanner
 from pydantic import BaseModel
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,9 +36,39 @@ project_id = config["gcp"]["project_id"]
 instance_id = spanner_config["instance_id"]
 database_id = spanner_config["database_id_chronos"]
 
-spanner_client = spanner.Client(project=project_id)
-instance = spanner_client.instance(instance_id)
-database = instance.database(database_id)
+use_mock = os.getenv("USE_MOCK_SPANNER", "false").lower() == "true"
+
+if not use_mock:
+    try:
+        spanner_client = spanner.Client(project=project_id)
+        instance = spanner_client.instance(instance_id)
+        # Verify connectivity by listing databases
+        _ = list(instance.list_databases())
+        database = instance.database(database_id)
+        logger.info("Successfully connected to live Cloud Spanner.")
+    except Exception as e:
+        logger.warning(f"Could not connect to live Cloud Spanner: {e}")
+        logger.warning("Spanner credentials missing or connection failed. Falling back to local Mock Spanner Emulator.")
+        use_mock = True
+
+if use_mock:
+    import sys
+    import mock_spanner
+    sys.modules["google.cloud.spanner"] = mock_spanner
+    spanner = mock_spanner
+    spanner_client = mock_spanner.Client(project=project_id)
+    instance = spanner_client.instance(instance_id)
+    database = instance.database(database_id)
+    try:
+        import os
+        sys.path.append(os.path.dirname(__file__))
+        from setup_spanner import setup_spanner_ledger
+        setup_spanner_ledger()
+        logger.info("Local Mock Spanner database pre-seeded successfully.")
+    except Exception as preseed_err:
+        logger.error(f"Failed to pre-seed local Mock Spanner: {preseed_err}")
+
+
 
 class PurchaseRequest(BaseModel):
     player_id: int
@@ -105,6 +139,90 @@ def get_state():
     except Exception as e:
         logger.error(f"Error fetching state: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/catalog")
+def get_catalog():
+    """Returns the Knowledge Catalog governance entries and tag templates for Spanner tables."""
+    catalog_data = {
+        "database": {
+            "name": f"projects/{project_id}/instances/{instance_id}/databases/{database_id}",
+            "catalog_entry_id": f"entry-spanner-{database_id}",
+            "owner": "economy-platform-stewards@company.com",
+            "last_synced": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        },
+        "tables": {
+            "players": {
+                "display_name": "players",
+                "description": "Stores player profiles, gamers metadata and gold coin balances.",
+                "spanner_resource": f"//spanner.googleapis.com/projects/{project_id}/instances/{instance_id}/databases/{database_id}/tables/players",
+                "schema": [
+                    {"column": "player_id", "type": "INT64", "description": "Primary key. Unique player identifier.", "tags": []},
+                    {"column": "name", "type": "STRING(100)", "description": "Display name of the gaming profile.", "tags": ["PII_LOW"]},
+                    {"column": "balance", "type": "INT64", "description": "Current virtual gold currency wallet balance.", "tags": ["SENSITIVE_FINANCIAL"]}
+                ],
+                "governance_tags": {
+                    "Classification": "Internal / Restricted",
+                    "Data Owner": "Virtual Commerce Team",
+                    "Retention Period": "10 Years (Audit Required)",
+                    "Data Quality Score": "99.9%"
+                }
+            },
+            "items": {
+                "display_name": "items",
+                "description": "Virtual item inventory with prices and stock levels.",
+                "spanner_resource": f"//spanner.googleapis.com/projects/{project_id}/instances/{instance_id}/databases/{database_id}/tables/items",
+                "schema": [
+                    {"column": "item_id", "type": "INT64", "description": "Primary key. Virtual SKU ID.", "tags": []},
+                    {"column": "name", "type": "STRING(100)", "description": "Name of the weapon, elixir or shield in the game store.", "tags": []},
+                    {"column": "price", "type": "INT64", "description": "Cost in virtual gold coins.", "tags": []},
+                    {"column": "stock", "type": "INT64", "description": "Remaining quantity left in global store inventory.", "tags": []}
+                ],
+                "governance_tags": {
+                    "Classification": "Public",
+                    "Data Owner": "Game Design Team",
+                    "Retention Period": "Active Lifecycle Only",
+                    "Data Quality Score": "100.0%"
+                }
+            },
+            "entitlements": {
+                "display_name": "entitlements",
+                "description": "Real-time player software entitlements and virtual item ownership licences.",
+                "spanner_resource": f"//spanner.googleapis.com/projects/{project_id}/instances/{instance_id}/databases/{database_id}/tables/entitlements",
+                "schema": [
+                    {"column": "entitlement_id", "type": "STRING(100)", "description": "Primary key. Globally unique license code.", "tags": ["CRYPTOGRAPHIC"]},
+                    {"column": "player_id", "type": "INT64", "description": "Foreign key reference to players.player_id.", "tags": []},
+                    {"column": "item_id", "type": "INT64", "description": "Foreign key reference to items.item_id.", "tags": []},
+                    {"column": "granted_at", "type": "TIMESTAMP", "description": "TrueTime transaction commit timestamp when license was verified.", "tags": ["AUDITABLE"]}
+                ],
+                "governance_tags": {
+                    "Classification": "Highly Confidential (Audit Ledger)",
+                    "Data Owner": "Security & Compliance Team",
+                    "Retention Period": "Permanent",
+                    "Data Quality Score": "100.0% (ACID Verified)"
+                }
+            },
+            "ledger": {
+                "display_name": "ledger",
+                "description": "ACID transaction log auditing double-spend prevention and checkout payments.",
+                "spanner_resource": f"//spanner.googleapis.com/projects/{project_id}/instances/{instance_id}/databases/{database_id}/tables/ledger",
+                "schema": [
+                    {"column": "transaction_id", "type": "STRING(100)", "description": "Primary key. Unique UUID assigned at payment gateway.", "tags": ["CRYPTOGRAPHIC"]},
+                    {"column": "player_id", "type": "INT64", "description": "Buyer account identifier.", "tags": []},
+                    {"column": "item_id", "type": "INT64", "description": "Purchased shop SKU.", "tags": []},
+                    {"column": "amount", "type": "INT64", "description": "Transaction value in virtual gold coins.", "tags": ["SENSITIVE_FINANCIAL"]},
+                    {"column": "timestamp", "type": "TIMESTAMP", "description": "TrueTime serialization point determined by Spanner.", "tags": ["AUDITABLE"]},
+                    {"column": "status", "type": "STRING(20)", "description": "Result of checkout transaction: SUCCESS or EXPLOIT_BLOCKED.", "tags": ["AUDIT_COMPLIANCE"]}
+                ],
+                "governance_tags": {
+                    "Classification": "Highly Confidential (Audit Ledger)",
+                    "Data Owner": "Commerce Audit & Finance",
+                    "Retention Period": "Permanent",
+                    "Data Quality Score": "100.0% (Spanner Serializable)"
+                }
+            }
+        }
+    }
+    return catalog_data
 
 @app.post("/api/reset")
 def reset_db():
@@ -200,26 +318,42 @@ def purchase_transaction_logic(transaction, player_id: int, item_id: int, tx_id:
     )
     logger.info(f"Transaction prepared for player {player_id} buying {item_id}.")
 
+def get_truetime_bounds(commit_ts: datetime.datetime):
+    # Simulate a realistic TrueTime uncertainty window (2ms to 6ms)
+    epsilon_ms = random.uniform(1.0, 3.0)  # Epsilon = 1 to 3 ms
+    epsilon = datetime.timedelta(milliseconds=epsilon_ms)
+    earliest = commit_ts - epsilon
+    latest = commit_ts + epsilon
+    return {
+        "commit_timestamp": commit_ts.isoformat(),
+        "earliest": earliest.isoformat(),
+        "latest": latest.isoformat(),
+        "uncertainty_ms": round(epsilon_ms * 2, 2)
+    }
+
 @app.post("/api/purchase")
 def purchase_item(req: PurchaseRequest):
     """Executes purchase with Strict ACID transaction in Spanner."""
     tx_id = f"tx-{uuid.uuid4().hex[:8]}"
     try:
         # Spanner SDK handles transaction retries automatically
-        database.run_in_transaction(
+        commit_ts = database.run_in_transaction(
             purchase_transaction_logic,
             player_id=req.player_id,
             item_id=req.item_id,
             tx_id=tx_id
         )
+        truetime_data = get_truetime_bounds(commit_ts) if commit_ts else None
         return {
             "status": "success",
             "message": f"Successfully purchased item {req.item_id}!",
-            "transaction_id": tx_id
+            "transaction_id": tx_id,
+            "truetime": truetime_data
         }
     except ValueError as val_err:
         # Write a failed transaction record to the ledger
         logger.warning(f"Purchase validation failed: {val_err}")
+        commit_ts = None
         try:
             # We insert the failed transaction to show player attempt audit log
             def log_failure(transaction):
@@ -234,14 +368,24 @@ def purchase_item(req: PurchaseRequest):
                         "status": spanner.param_types.STRING
                     }
                 )
-            database.run_in_transaction(log_failure)
+            commit_ts = database.run_in_transaction(log_failure)
         except Exception as log_err:
             logger.error(f"Could not log transaction failure to ledger: {log_err}")
             
-        raise HTTPException(status_code=400, detail=str(val_err))
+        truetime_data = get_truetime_bounds(commit_ts) if commit_ts else None
+        return JSONResponse(
+            status_code=400,
+            content={
+                "status": "exploit_blocked",
+                "detail": str(val_err),
+                "transaction_id": tx_id,
+                "truetime": truetime_data
+            }
+        )
     except Exception as e:
         logger.error(f"Transaction aborted or failed: {e}")
         raise HTTPException(status_code=500, detail=f"Transaction Failed: {str(e)}")
+
 
 # Mount static files for React frontend if built directory exists
 static_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

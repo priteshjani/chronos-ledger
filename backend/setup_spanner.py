@@ -6,6 +6,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def setup_spanner_ledger():
+    import os
+    import sys
+    global spanner
+    
     # 1. Load config
     with open("config.json", "r") as f:
         config = json.load(f)
@@ -15,9 +19,26 @@ def setup_spanner_ledger():
     database_id = spanner_config["database_id_chronos"]
     project_id = config["gcp"]["project_id"]
     
-    logger.info(f"Connecting to Spanner Instance: {instance_id} under Project: {project_id}")
-    spanner_client = spanner.Client(project=project_id)
-    instance = spanner_client.instance(instance_id)
+    use_mock = os.getenv("USE_MOCK_SPANNER", "false").lower() == "true"
+    
+    if not use_mock:
+        try:
+            logger.info(f"Connecting to Spanner Instance: {instance_id} under Project: {project_id}")
+            spanner_client = spanner.Client(project=project_id)
+            instance = spanner_client.instance(instance_id)
+            # Try to list databases to check connection
+            _ = list(instance.list_databases())
+        except Exception as e:
+            logger.warning(f"Could not connect to live Google Cloud Spanner: {e}")
+            logger.warning("Falling back to local Mock Spanner Emulator for setup.")
+            use_mock = True
+            
+    if use_mock:
+        import mock_spanner
+        sys.modules["google.cloud.spanner"] = mock_spanner
+        spanner = mock_spanner
+        spanner_client = mock_spanner.Client(project=project_id)
+        instance = spanner_client.instance(instance_id)
     
     # 2. Check and Create Database
     db_list = [db.name.split("/")[-1] for db in instance.list_databases()]
