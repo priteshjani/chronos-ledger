@@ -156,7 +156,9 @@ class Batch:
 
     def delete(self, table, keyset):
         cursor = self.conn.cursor()
-        if getattr(keyset, 'all_ids', False):
+        if (getattr(keyset, 'all_ids', False) or 
+            getattr(keyset, 'all_elements', False) or 
+            getattr(keyset, 'all_', False)):
             cursor.execute(f"DELETE FROM {table}")
 
     def insert(self, table, columns, values):
@@ -177,8 +179,10 @@ class Batch:
         cursor.executemany(query, processed_values)
 
 class KeySet:
-    def __init__(self, all_ids=False):
+    def __init__(self, all_ids=False, all_elements=False, all_=False):
         self.all_ids = all_ids
+        self.all_elements = all_elements
+        self.all_ = all_ or all_ids or all_elements
 
 def _execute_sql_helper(conn, query, params=None, cursor=None):
     if params is None:

@@ -10,8 +10,9 @@ def setup_spanner_ledger():
     import sys
     global spanner
     
-    # 1. Load config
-    with open("config.json", "r") as f:
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(backend_dir, "..", "config.json")
+    with open(config_path, "r") as f:
         config = json.load(f)
         
     spanner_config = config["databases"]["spanner"]
@@ -20,7 +21,10 @@ def setup_spanner_ledger():
     project_id = config["gcp"]["project_id"]
     
     use_mock = os.getenv("USE_MOCK_SPANNER", "false").lower() == "true"
-    
+    if not use_mock:
+        if hasattr(spanner, "__name__") and "mock_spanner" in spanner.__name__:
+            use_mock = True
+            
     if not use_mock:
         try:
             logger.info(f"Connecting to Spanner Instance: {instance_id} under Project: {project_id}")
@@ -41,7 +45,7 @@ def setup_spanner_ledger():
         instance = spanner_client.instance(instance_id)
     
     # 2. Check and Create Database
-    db_list = [db.name.split("/")[-1] for db in instance.list_databases()]
+    # We check existence by calling database.reload() below to avoid administrative list_databases permissions.
     
     ddl_statements = [
         """
@@ -80,7 +84,18 @@ def setup_spanner_ledger():
     ]
     
     database = instance.database(database_id)
-    if database_id not in db_list:
+    db_exists = True
+    if use_mock:
+        db_list = [db.name.split("/")[-1] for db in instance.list_databases()]
+        db_exists = database_id in db_list
+    else:
+        try:
+            database.reload()
+        except Exception as e:
+            logger.info(f"Database {database_id} not found or reload failed: {e}. Attempting creation...")
+            db_exists = False
+
+    if not db_exists:
         logger.info(f"Database {database_id} does not exist. Creating empty database...")
         operation = database.create()
         operation.result(120)
@@ -101,10 +116,10 @@ def setup_spanner_ledger():
         if tables_exist:
             try:
                 with database.batch() as batch:
-                    batch.delete("ledger", spanner.KeySet(all_ids=True))
-                    batch.delete("entitlements", spanner.KeySet(all_ids=True))
-                    batch.delete("items", spanner.KeySet(all_ids=True))
-                    batch.delete("players", spanner.KeySet(all_ids=True))
+                    batch.delete("ledger", spanner.KeySet(all_=True))
+                    batch.delete("entitlements", spanner.KeySet(all_=True))
+                    batch.delete("items", spanner.KeySet(all_=True))
+                    batch.delete("players", spanner.KeySet(all_=True))
                 logger.info("Cleared existing records from tables.")
             except Exception as e:
                 logger.warning(f"Could not clear tables: {e}")

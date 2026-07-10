@@ -119,6 +119,11 @@ export default function App() {
         setLogs([`[System] Resetting Spanner Database chronos-ledger-db...`, `[System] Seeding fresh game players and items inventory.`]);
         setIsScaleSimulating(false);
         await fetchState();
+        alert("Database reset successfully!");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMsg = errorData.detail || "Server error";
+        alert("Error resetting database: " + errorMsg);
       }
     } catch (err) {
       alert("Error resetting database: " + err.message);

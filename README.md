@@ -46,7 +46,7 @@ Spanner executes transactions under **Serializable Isolation** (the highest stan
 
 The React interface displays a live dashboard of players and items, alongside a Spanner TrueTime Console terminal and a **TrueTime Transaction Inspector** side panel:
 
-![TrueTime Simulation Demo](/Users/priteshjani/.gemini/jetski/brain/7c949704-c1e3-4908-8011-3212df6fdfe2/truetime_inspector_flow_1783329782604.webp)
+![TrueTime Simulation Demo](screenshots/truetime_inspector_flow_1783329782604.webp)
 
 1.  **Bob's Wallets**: Bob starts with **450 gold**.
 2.  **The Store**: The *Dragon Slayer Sword* costs **400 gold** (only 1 purchase is possible).
