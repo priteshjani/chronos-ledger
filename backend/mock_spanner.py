@@ -66,6 +66,13 @@ class Database:
             stmt = stmt.replace("OPTIONS (allow_commit_timestamp = true)", "")
             stmt = re.sub(r"STRING\s*\(\s*\d+\s*\)", "TEXT", stmt)
             stmt = re.sub(r"STRING\s*\(\s*MAX\s*\)", "TEXT", stmt)
+            
+            # Convert Spanner PRIMARY KEY(...) at the end to SQLite style inline primary key
+            pk_match = re.search(r"\)\s*PRIMARY\s+KEY\s*\(([^)]+)\)\s*$", stmt, re.IGNORECASE)
+            if pk_match:
+                pk_cols = pk_match.group(1)
+                stmt_body = stmt[:pk_match.start()].strip()
+                stmt = stmt_body + f", PRIMARY KEY({pk_cols}))"
             try:
                 cursor.execute(stmt)
             except Exception as e:

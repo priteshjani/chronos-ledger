@@ -90,16 +90,28 @@ def setup_spanner_ledger():
         logger.info("Database schema deployed successfully.")
     else:
         logger.info(f"Database {database_id} already exists. Verifying / recreating schema...")
-        # For demo purposes, we will clear existing tables and seed clean datasets.
+        tables_exist = False
         try:
-            with database.batch() as batch:
-                batch.delete("ledger", spanner.KeySet(all_ids=True))
-                batch.delete("entitlements", spanner.KeySet(all_ids=True))
-                batch.delete("items", spanner.KeySet(all_ids=True))
-                batch.delete("players", spanner.KeySet(all_ids=True))
-            logger.info("Cleared existing records from tables.")
-        except Exception as e:
-            logger.warning(f"Could not clear tables (they might be empty or missing): {e}")
+            with database.snapshot() as snapshot:
+                _ = list(snapshot.execute_sql("SELECT 1 FROM players LIMIT 1"))
+            tables_exist = True
+        except Exception:
+            logger.info("Tables do not exist. Deploying DDL schema...")
+            
+        if tables_exist:
+            try:
+                with database.batch() as batch:
+                    batch.delete("ledger", spanner.KeySet(all_ids=True))
+                    batch.delete("entitlements", spanner.KeySet(all_ids=True))
+                    batch.delete("items", spanner.KeySet(all_ids=True))
+                    batch.delete("players", spanner.KeySet(all_ids=True))
+                logger.info("Cleared existing records from tables.")
+            except Exception as e:
+                logger.warning(f"Could not clear tables: {e}")
+        else:
+            operation_ddl = database.update_ddl(ddl_statements)
+            operation_ddl.result(120)
+            logger.info("Database schema deployed successfully.")
             
     # 3. Seed initial records
     logger.info("Seeding player profiles...")

@@ -90,14 +90,18 @@ chronos-ledger/
 │   ├── main.py            # FastAPI backend server with Spanner ACID and Dataplex Catalog endpoints
 │   ├── mock_spanner.py    # Python in-memory Spanner fallback emulator client
 │   └── setup_spanner.py   # Seeding and database schema creation script
-└── frontend/
-    ├── index.html
-    ├── package.json
-    ├── vite.config.js
-    └── src/
-        ├── App.jsx        # React UI Client containing simulator, TrueTime inspector & Dataplex Catalog tabs
-        ├── index.css
-        └── main.jsx
+├── frontend/
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── App.jsx        # React UI Client containing simulator, TrueTime inspector & Dataplex Catalog tabs
+│       ├── index.css
+│       └── main.jsx
+└── terraform/
+    ├── main.tf            # Terraform deployment config for Spanner & Artifact Registry
+    ├── outputs.tf         # Output values for project resources
+    └── variables.tf       # Input parameters for project regions and IDs
 ```
 
 ---

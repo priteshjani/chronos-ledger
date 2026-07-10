@@ -1,7 +1,10 @@
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
+
 import json
 import uuid
 import logging
-import os
 import random
 import datetime
 from typing import Dict, Any
@@ -60,8 +63,6 @@ if use_mock:
     instance = spanner_client.instance(instance_id)
     database = instance.database(database_id)
     try:
-        import os
-        sys.path.append(os.path.dirname(__file__))
         from setup_spanner import setup_spanner_ledger
         setup_spanner_ledger()
         logger.info("Local Mock Spanner database pre-seeded successfully.")
