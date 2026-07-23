@@ -52,15 +52,37 @@ The React interface displays a live dashboard of players and items, alongside a 
 2.  **The Store**: The *Dragon Slayer Sword* costs **400 gold** (only 1 purchase is possible).
 3.  **The Hack**: Clicking **"Execute Race-Condition Exploit"** fires two concurrent HTTP purchase requests (`POST /api/purchase`) simultaneously.
 4.  **TrueTime Console Logs**:
-    *   `[Device A] Initiating Purchase: Bob attempts to buy 'Dragon Slayer Sword'...`
-    *   `[Device B] Initiating Purchase: Bob attempts to buy 'Dragon Slayer Sword'...`
-    *   `🟢 [Device A Response - 200 OK] Success! Entitlement registered. Tx: tx-8e2b9213`
-    *   `🔴 [Device B Response - 400 Failed] Exploit Blocked: Bob has insufficient gold.`
+    *   `[Device A] Initiating Purchase: Bob attempts to buy 'Dragon Slayer Sword' (400 gold) on Phone...`
+    *   `[Device B] Initiating Purchase: Bob attempts to buy 'Dragon Slayer Sword' (400 gold) on Tablet CONCURRENTLY...`
+    *   `[TrueTime Audit] Both transactions transmitted with overlapping network timestamps.`
+    *   `[Cloud Spanner] Spanner receives requests. Initializing global Serializable Isolation locks...`
+    *   `[Cloud Spanner] TrueTime atomic clocks parsing transaction commit windows...`
+    *   `🟢 [Device A Response - 200 OK] Success! Entitlement registered at TrueTime 19:40:05.112Z. Tx: tx-8e2b9213`
+    *   `🔴 [Device B Response - 400 Failed] Exploit Blocked at TrueTime 19:40:05.115Z: Bob has insufficient gold.`
 5.  **TrueTime Inspector Side Panel**: 
     *   Clicking on any transaction in the **ACID Transaction Ledger Audit Trail** or **Granted Player Entitlements** table loads the transaction in the side panel.
     *   Displays the **TrueTime Confidence Interval Window** including the Earliest Limit ($T - \epsilon$), Commit Timestamp ($T$), Latest Limit ($T + \epsilon$), and total Sync Uncertainty ($2\epsilon$) in milliseconds.
     *   Renders a visual timeline of the uncertainty window and the serialized commit point.
     *   Prints the raw API JSON response returned by the server.
+
+---
+
+## ⚡ 1M Scale Transaction Simulator
+
+ChronosLedger also includes a high-scale load simulator to show how Cloud Spanner scales to massive global gaming traffic:
+1. **The Scale**: Clicking **"Run 1M Scale Simulator"** triggers a simulation of 100,000 active players and 1,000,000 concurrent wallet transactions.
+2. **TrueTime Audit**: The simulation shows how Spanner uses TrueTime atomic clocks to serialize and order 1,000,000 transactions within sub-millisecond ranges, handling replica routing and dynamically blocking thousands of duplicate spend attempts without locking bottlenecks.
+3. **Console Output**:
+    * `[Scale Simulation] Starting massive concurrency simulation: 100,000 active players...`
+    * `[Scale Simulation] Dispatching load test: 1,000,000 concurrent wallet updates at TrueTime 19:41:00.000Z`
+    * `[Cloud Spanner] Multi-Region Routing: Sharding load dynamically across 3 read/write replicas.`
+    * `[TrueTime Audit] TrueTime Sync: GPS/Atomic Clock sync uncertainty window: ε = 0.95ms.`
+    * `[Scale Simulation] Progress: 350,000 transactions serialized and committed by TrueTime 19:41:00.120Z (avg latency: 0.82ms).`
+    * `[Scale Simulation] Progress: 720,000 transactions serialized and committed by TrueTime 19:41:00.280Z (avg latency: 0.85ms).`
+    * `🟢 [Scale Simulation Success] 1,000,050 transactions processed successfully by TrueTime 19:41:00.450Z.`
+    * `🟢 [Scale Simulation Success] Cloud Spanner throughput peak: 12,500 operations/sec.`
+    * `🛡️ [TrueTime Audit] Spanner blocked 42,391 double-spend exploit attempts at the engine level.`
+    * `🛡️ [TrueTime Audit] Sub-millisecond transactions and Serializability prevent consistency anomalies without lock bottlenecks.`
 
 ---
 

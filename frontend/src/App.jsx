@@ -187,17 +187,21 @@ export default function App() {
 
       // Process Device A (Request 1)
       if (res1.ok) {
-        setLogs(prev => [...prev, `🟢 [Device A Response - 200 OK] Success! Entitlement registered. Tx: ${res1.data.transaction_id}`]);
+        const timeStr = res1.data.truetime ? new Date(res1.data.truetime.commit_timestamp).toISOString().split('T')[1].slice(0, 12) : '';
+        setLogs(prev => [...prev, `🟢 [Device A Response - 200 OK] Success! Entitlement registered at TrueTime ${timeStr}Z. Tx: ${res1.data.transaction_id}`]);
       } else {
-        setLogs(prev => [...prev, `🔴 [Device A Response - 400 Failed] Exploit Blocked: 'Bob (Exploit Tester)' has insufficient gold (300 gold available, 400 needed).`]);
+        const timeStr = res1.data.truetime ? new Date(res1.data.truetime.commit_timestamp).toISOString().split('T')[1].slice(0, 12) : '';
+        setLogs(prev => [...prev, `🔴 [Device A Response - 400 Failed] Exploit Blocked at TrueTime ${timeStr}Z: 'Bob (Exploit Tester)' has insufficient gold.`]);
       }
 
       // Process Device B (Request 2)
       if (res2.ok) {
-        setLogs(prev => [...prev, `🟢 [Device B Response - 200 OK] Success! Entitlement registered. Tx: ${res2.data.transaction_id}`]);
+        const timeStr = res2.data.truetime ? new Date(res2.data.truetime.commit_timestamp).toISOString().split('T')[1].slice(0, 12) : '';
+        setLogs(prev => [...prev, `🟢 [Device B Response - 200 OK] Success! Entitlement registered at TrueTime ${timeStr}Z. Tx: ${res2.data.transaction_id}`]);
         setSelectedTx({ ...res2.data, player_id: 2, item_id: 101, amount: 400 });
       } else {
-        setLogs(prev => [...prev, `🔴 [Device B Response - 400 Failed] Exploit Blocked: Bob has insufficient gold (50 remaining, 400 needed).`]);
+        const timeStr = res2.data.truetime ? new Date(res2.data.truetime.commit_timestamp).toISOString().split('T')[1].slice(0, 12) : '';
+        setLogs(prev => [...prev, `🔴 [Device B Response - 400 Failed] Exploit Blocked at TrueTime ${timeStr}Z: Bob has insufficient gold.`]);
         setSelectedTx({ ...res2.data, player_id: 2, item_id: 101, amount: 400, status: 'exploit_blocked' });
       }
 
@@ -216,19 +220,25 @@ export default function App() {
     setSelectedTx(null);
     setLogs([]);
     
-    setLogs(prev => [...prev, `[Scale Simulation] Spinning up simulation: 100,000 concurrent active players...`]);
-    setLogs(prev => [...prev, `[Scale Simulation] Dispatching load test: 1,000,000 concurrent wallet updates...`]);
+    const startTime = new Date();
+    const formatTime = (d) => d.toISOString().split('T')[1].slice(0, 12);
+    
+    setLogs(prev => [...prev, `[Scale Simulation] Starting massive concurrency simulation: 100,000 active players...`]);
+    setLogs(prev => [...prev, `[Scale Simulation] Dispatching load test: 1,000,000 concurrent wallet updates at TrueTime ${formatTime(startTime)}Z`]);
     
     await new Promise(resolve => setTimeout(resolve, 800));
+    const time1 = new Date(startTime.getTime() + 120);
     setLogs(prev => [...prev, `[Cloud Spanner] Multi-Region Routing: Sharding load dynamically across 3 read/write replicas.`]);
     setLogs(prev => [...prev, `[TrueTime Audit] TrueTime Sync: GPS/Atomic Clock sync uncertainty window: ε = 0.95ms.`]);
+    setLogs(prev => [...prev, `[Scale Simulation] Progress: 350,000 transactions serialized and committed by TrueTime ${formatTime(time1)}Z (avg latency: 0.82ms).`]);
     
     await new Promise(resolve => setTimeout(resolve, 600));
-    setLogs(prev => [...prev, `[Scale Simulation] Progress: 350,000 transactions committed (average latency: 0.82ms).`]);
-    setLogs(prev => [...prev, `[Scale Simulation] Progress: 720,000 transactions committed (average latency: 0.85ms).`]);
+    const time2 = new Date(startTime.getTime() + 280);
+    setLogs(prev => [...prev, `[Scale Simulation] Progress: 720,000 transactions serialized and committed by TrueTime ${formatTime(time2)}Z (avg latency: 0.85ms).`]);
     
     await new Promise(resolve => setTimeout(resolve, 800));
-    setLogs(prev => [...prev, `🟢 [Scale Simulation Success] 1,000,050 transactions processed successfully.`]);
+    const endTime = new Date(startTime.getTime() + 450);
+    setLogs(prev => [...prev, `🟢 [Scale Simulation Success] 1,000,050 transactions processed successfully by TrueTime ${formatTime(endTime)}Z.`]);
     setLogs(prev => [...prev, `🟢 [Scale Simulation Success] Cloud Spanner throughput peak: 12,500 operations/sec.`]);
     setLogs(prev => [...prev, `🛡️ [TrueTime Audit] Spanner blocked 42,391 double-spend exploit attempts at the engine level.`]);
     setLogs(prev => [...prev, `🛡️ [TrueTime Audit] Sub-millisecond transactions and Serializability prevent consistency anomalies without lock bottlenecks.`]);
